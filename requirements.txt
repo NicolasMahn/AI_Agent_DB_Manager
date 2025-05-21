@@ -1,0 +1,8 @@
+chromadb~=0.6.3
+PyPDF2~=3.0.1
+openai~=1.62.0
+tiktoken~=0.8.0
+tqdm~=4.67.1
+PyYAML~=6.0.2
+pygments~=2.19.1
+google-genai
