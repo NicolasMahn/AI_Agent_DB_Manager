@@ -21,8 +21,6 @@ RESET = "\033[0m"
 
 
 def populate_db():
-
-
     parser = argparse.ArgumentParser()
     parser.add_argument("--reset", action="store_true", help="Reset the database.")
     parser.add_argument("--debug", action="store_true", help="Additional print statements")
@@ -56,6 +54,7 @@ class DatabaseManager:
                  chunk_separation_warning: bool = True, chunk_size: int = 8192):
 
         self.data = None
+        self.document_filenames = None
         self.predefined_ids = None
         self.url_mapping = None
         self.context_data = None
@@ -84,13 +83,17 @@ class DatabaseManager:
     def load_collection(self, topic: str, reset: bool=False):
         self.topic = topic
         self.topic_config = self.data_topics[self.topic]
-        self.collection = self.chroma_client.get_or_create_collection(name=self.topic, embedding_function=openai_ef)
+        self.chroma_collection_name = self.topic_config.get('chroma_collection', self.topic)
+        self.collection = self.chroma_client.get_or_create_collection(name=self.chroma_collection_name, embedding_function=openai_ef)
 
         self.topic_dir =self.topic_config['topic_dir']
         self.url_mapping_file = f"{self.topic_dir}/url_mapping.yml"
         self.context_file = f"{self.topic_dir}/context_data.yaml"
         self.predefined_ids_file = f"{self.topic_dir}/ids.yaml"
         self.data_file = f"{self.topic_dir}/data.json"
+        self.document_dir = f"{self.topic_dir}/documents"
+
+
 
         self.context_data = self.open_context_data()
 
@@ -105,27 +108,50 @@ class DatabaseManager:
         self.predefined_ids = self.get_predefined_ids()
 
     def clear_collection(self):
-        self.chroma_client.delete_collection(name=self.topic)
-        self.collection = self.chroma_client.get_or_create_collection(name=self.topic, embedding_function=openai_ef)
+        self.chroma_client.delete_collection(name=self.chroma_collection_name)
+        self.collection = self.chroma_client.get_or_create_collection(name=self.chroma_collection_name, embedding_function=openai_ef)
+
+    def get_document_filenames(self):
+        document_filenames = []
+        for file in os.listdir(self.document_dir):
+            if file.endswith('.txt'):
+                document_filenames.append(file)
+        return document_filenames
 
     def save_data(self):
         self.data = self.load_data_from_file()
+        self.document_filenames = self.get_document_filenames()
 
         # Custom bar format with color codes
         bar_format = f"{WHITE}⌛  Adding Text    {{l_bar}}{BLUE}{{bar}}{WHITE}{{r_bar}}{RESET}"
 
         ncols = shutil.get_terminal_size((80, 20)).columns - 10
 
-        with tqdm(total=len(self.data), bar_format=bar_format, unit="document", ncols=ncols) as pbar:
+        with tqdm(total=len(self.data)+len(self.document_filenames), bar_format=bar_format, unit="document", ncols=ncols) as pbar:
             for data_item in self.data:
                 doc_chunks = self.process_data(data_item)
                 for chunk in doc_chunks:
                     self.add_to_chroma(chunk)
                 pbar.update(1)
 
+            for filename in self.document_filenames:
+                with open(os.path.join(self.document_dir, filename), 'r', encoding='utf-8') as file:
+                    content = file.read()
+                if filename in self.url_mapping:
+                    url = self.url_mapping[filename]
+                else:
+                    url = None
+                doc_chunks = self.process_data({"content": content, "doc_name": filename, "url": url})
+                for chunk in doc_chunks:
+                    self.add_to_chroma(chunk)
+                pbar.update(1)
+
     def load_data_from_file(self):
-        with open(self.data_file, 'r', encoding='utf-8') as file:
-            return json.load(file)
+        try:
+            with open(self.data_file, 'r', encoding='utf-8') as file:
+                return json.load(file)
+        except FileNotFoundError:
+            return []
 
     def load_url_mapping(self):
         try:
@@ -193,7 +219,10 @@ class DatabaseManager:
         documents = []
         for i, chunk in enumerate(content_chunks):
             metadata = data_item
-            metadata["id"] = f"{metadata['pdf_name']}_{metadata['title']}_{i}"
+            metadata["chunk_number"] = i
+            metadata["topic"] = self.topic
+            source = metadata.get("pdf_name", metadata.get("url", None))
+            metadata["id"] = f"{self.topic}_{source}_{metadata.get('title', None)}_{i}"
             if metadata is None:
                 print(f"{PINK}⚠️  Error: Metadata empty (line 247){RESET}")
             elif self.debug:

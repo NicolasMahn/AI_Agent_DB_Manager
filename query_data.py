@@ -40,7 +40,7 @@ def main():
 
     if not args.query_text:
         query_text = "What is the capital of France?"
-        print(f"{WHITE}🔍  Using default Test query: {query_text}{RESET}")
+        print(f"🔍  Using default Test query: {WHITE}{query_text}{RESET}")
     else:
         query_text = args.query_text
 
@@ -48,13 +48,14 @@ def main():
         topic = default_topic
         if default_topic == "all":
             topic = list(data_topics.keys())[0]
-        print(f"{WHITE}📄  Using default Test topic: {topic}{RESET}")
+        print(f"📄  Using default Test topic: {WHITE}{topic}{RESET}")
     else:
         topic = args.topic
 
-    response_text, _, _ = query_rag(query_text, topic, debug=args.debug)
+    response_text, context_text, metadatas = query_rag(query_text, topic, debug=args.debug)
 
-    print(f"{WHITE}{response_text}{RESET}")
+    print(f"📁  Context: \n {GREEN}{context_text}{RESET}")
+    print(f"▶️ LLM Response: {WHITE}{response_text}{RESET}")
     print()
 
 

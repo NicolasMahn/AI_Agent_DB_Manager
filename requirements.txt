@@ -6,3 +6,12 @@ tqdm~=4.67.1
 PyYAML~=6.0.2
 pygments~=2.19.1
 google-genai
+fitz
+pdfplumber
+requests
+beautifulsoup4
+Pillow
+pandas
+datasets
+playwright
+urllib3

@@ -2,7 +2,7 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
-      <module fileurl="file://$PROJECT_DIR$/.idea/graph_generation_db_manager.iml" filepath="$PROJECT_DIR$/.idea/graph_generation_db_manager.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/AI_Agent_DB_Manager.iml" filepath="$PROJECT_DIR$/.idea/AI_Agent_DB_Manager.iml" />
     </modules>
   </component>
 </project>
